@@ -1,0 +1,136 @@
+How to install Kafka and configure
+==================================
+
+step1 : download kafka from official website.
+
+step2 : extract file.
+
+step 3 : rename the kafka folder from kafka-2.13. to kafka
+
+step 4 copy the folder and paste in c drive 
+
+step 5: start zookeeper below command
+
+.\bin\windows\zookeeper-server-start.bat .\config\zookeeper.properties
+
+step6: start kafka server below command
+
+.\bin\windows\kafka-server-start.bat .\config\server.properties
+
+step 7: create spring boot project add two dependency 
+
+		1.spring web
+		2.spring kafka
+
+step 8: configure kafka configuration in application.property file:
+
+
+spring.kafka.consumer.bootstrap-servers: localhost:9092
+spring.kafka.consumer.group-id:myGroup
+spring.kafka.consumer.auto-offset-reset: earliest
+spring.kafka.consumer.key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+spring.kafka.consumer.value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+spring.kafka.producer.bootstrap-servers: localhost:9092
+spring.kafka.producer.key-serializer: org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.producer.value-serializer: org.apache.kafka.common.serialization.StringSerializer
+spring.kafka.topic.name=tiaa-topic
+
+
+step 9: write code for kafka producer.
+
+	
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+@Service
+public class KafkaProducer {
+	
+	
+    @Value("${spring.kafka.topic.name}")
+    private String topicName;
+	
+    private static final Logger log = LoggerFactory.getLogger(KafkaProducer.class);
+    
+    private KafkaTemplate<String, String> kafkaTemplate;
+
+	public KafkaProducer(KafkaTemplate<String, String> kafkaTemplate) {
+	
+		this.kafkaTemplate = kafkaTemplate;
+	}
+    
+	 public void sendMessage(String message){
+		
+	        log.info(String.format("Message sent  %s", message));
+	        kafkaTemplate.send(topicName, message);
+	    }
+
+}
+
+step 10: write code for consume message from producer
+
+
+	
+	
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.stereotype.Service;
+
+@Service
+public class KafkaConsumer {
+
+	@Value("${spring.kafka.topic.name}")
+    	private String topicName;
+
+	@Value("${spring.kafka.consumer.group-id}")
+    private String myGroupId;
+	private static final Logger LOGGER = LoggerFactory.getLogger(KafkaConsumer.class);
+
+	@KafkaListener(topics =topicName , groupId = myGroupId)
+	public void consume(String message) {
+		LOGGER.info(String.format("Message received -> %s", message));
+	}
+}
+	
+
+step 11.. create Rest API.
+
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.bestprogrammer.kafka.KafkaProducer;
+
+@RestController
+@RequestMapping("/api/v1/kafka")
+public class KafkaController {
+
+	private KafkaProducer kafkaProducer;
+
+	public KafkaController(KafkaProducer kafkaProducer) {
+		super();
+		this.kafkaProducer = kafkaProducer;
+	}
+
+	@GetMapping("/publish")
+	public ResponseEntity<String> publish(@RequestParam("message") String message) {
+		kafkaProducer.sendMessage(message);
+		return ResponseEntity.ok("Message sent to the topic");
+	}
+	
+	
+}
+
+
+
+
+
+
+
